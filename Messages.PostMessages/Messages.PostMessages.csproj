@@ -15,4 +15,7 @@
   <ItemGroup>
     <DotNetCliToolReference Include="Amazon.Lambda.Tools" Version="2.1.3" />
   </ItemGroup>
+  <ItemGroup>
+    <None Remove="Messages.PostMessages.zip" />
+  </ItemGroup>
 </Project>

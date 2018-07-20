@@ -27,6 +27,7 @@ using Messages.Tables;
 using MindTouch.LambdaSharp;
 using Amazon.S3.Util;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
@@ -49,15 +50,32 @@ namespace Messages.LoadMessages {
 
         public override async Task<object> ProcessMessageAsync(S3EventNotification message, ILambdaContext context) {
             LogInfo(JsonConvert.SerializeObject(message));
-            
+
             // Use S3EventNotification to get location of the file which was uploaded
-
+            var key = message.Records[0].S3.Object.Key;
+            var bucketName = message.Records[0].S3.Bucket.Name;
             // Read S3 object contents
-                
+            var objectContents = await _s3Client.GetObjectAsync(bucketName, key);
             // Separate messages by line ending
-
+            String contents = null;
+            using (var reader = new System.IO.StreamReader(objectContents.ResponseStream)){
+                contents = reader.ReadToEnd();
+            }
             // Use BatchInsertMessagesAsync from the Messages.Tables library to write messages to DynamoDB
+
+            await _table.BatchInsertMessagesAsync(GetMessages(contents.Split('\n'), bucketName));
             return null;
+        }
+
+        private IEnumerable<Message> GetMessages(IEnumerable<string> lines, string bucketName)
+        {
+            foreach (var line in lines)
+                yield return new Message
+                {
+                    MessageId = Guid.NewGuid().ToString(),
+                    Source = bucketName,
+                    Text = line
+                };
         }
     }
 }
